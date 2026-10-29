@@ -56,6 +56,35 @@ jobs:
           print("Applied", len(replacements), "Minecraft 1.21.11 mapping/API fixes.")
           PY
 
+      - name: Fix Mixin package collision
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p EveryMobDropsOP/src/main/java/com/ultraop/emdo/mixin
+          mv EveryMobDropsOP/src/main/java/com/ultraop/emdo/ItemEntityMixin.java EveryMobDropsOP/src/main/java/com/ultraop/emdo/mixin/ItemEntityMixin.java
+          mv EveryMobDropsOP/src/main/java/com/ultraop/emdo/LivingEntityMixin.java EveryMobDropsOP/src/main/java/com/ultraop/emdo/mixin/LivingEntityMixin.java
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("EveryMobDropsOP/src/main/java/com/ultraop/emdo/mixin")
+          for name in ("ItemEntityMixin.java", "LivingEntityMixin.java"):
+              p = root / name
+              s = p.read_text()
+              old = "package com.ultraop.emdo;"
+              if old not in s:
+                  raise SystemExit(f"Expected original package not found in {p}")
+              s = s.replace(old, "package com.ultraop.emdo.mixin;", 1)
+              if name == "ItemEntityMixin.java":
+                  s = s.replace("package com.ultraop.emdo.mixin;", "package com.ultraop.emdo.mixin;\\n\\nimport com.ultraop.emdo.TimedDropManager;", 1)
+              p.write_text(s)
+          cfg = Path("EveryMobDropsOP/src/main/resources/everymobdropsop.mixins.json")
+          s = cfg.read_text()
+          old = '"package": "com.ultraop.emdo"'
+          if old not in s:
+              raise SystemExit("Expected original Mixin package not found in config")
+          cfg.write_text(s.replace(old, '"package": "com.ultraop.emdo.mixin"', 1))
+          print("Moved Mixin classes into isolated package and updated config.")
+          PY
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -81,6 +110,8 @@ jobs:
           jar tf "$jarfile" | tee /tmp/emdo-jar-contents.txt
           grep -q 'fabric.mod.json' /tmp/emdo-jar-contents.txt
           grep -q 'com/ultraop/emdo/EveryMobDropsOP.class' /tmp/emdo-jar-contents.txt
+          grep -q 'com/ultraop/emdo/mixin/ItemEntityMixin.class' /tmp/emdo-jar-contents.txt
+          grep -q 'com/ultraop/emdo/mixin/LivingEntityMixin.class' /tmp/emdo-jar-contents.txt
           grep -q 'everymobdropsop.mixins.json' /tmp/emdo-jar-contents.txt
 
       - name: Upload JAR artifact
