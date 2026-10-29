@@ -74,7 +74,9 @@ jobs:
                   raise SystemExit(f"Expected original package not found in {p}")
               s = s.replace(old, "package com.ultraop.emdo.mixin;", 1)
               if name == "ItemEntityMixin.java":
-                  s = s.replace("package com.ultraop.emdo.mixin;", "package com.ultraop.emdo.mixin;\\n\\nimport com.ultraop.emdo.TimedDropManager;", 1)
+                  lines = s.splitlines()
+                  lines.insert(2, "import com.ultraop.emdo.TimedDropManager;")
+                  s = "\n".join(lines) + "\n"
               p.write_text(s)
           cfg = Path("EveryMobDropsOP/src/main/resources/everymobdropsop.mixins.json")
           s = cfg.read_text()
