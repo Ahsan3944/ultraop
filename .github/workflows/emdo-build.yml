@@ -45,6 +45,7 @@ jobs:
               "level.dimension().location()": "level.dimension().identifier()",
               "enchantmentKey.location()": "enchantmentKey.identifier()",
               ".requires(source -> source.hasPermission(2))": ".requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))",
+              "context.getParamOrNull(LootContextParams.THIS_ENTITY)": "context.getOptionalParameter(LootContextParams.THIS_ENTITY)",
               "private static Component colored(String text, int rgb, boolean bold) {": "private static MutableComponent colored(String text, int rgb, boolean bold) {",
           }
           for old, new in replacements.items():
