@@ -28,6 +28,33 @@ jobs:
           test -f EveryMobDropsOP/build.gradle
           test -f EveryMobDropsOP/src/main/resources/fabric.mod.json
 
+      - name: Patch source for Minecraft 1.21.11 Mojang mappings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("EveryMobDropsOP/src/main/java/com/ultraop/emdo/EveryMobDropsOP.java")
+          s = p.read_text()
+          replacements = {
+              "import net.minecraft.network.chat.Component;\n": "import net.minecraft.network.chat.Component;\nimport net.minecraft.network.chat.MutableComponent;\n",
+              "import net.minecraft.world.level.storage.loot.LootContextParams;": "import net.minecraft.world.level.storage.loot.parameters.LootContextParams;",
+              "Items.GOLD_INGOT, Items.QUARTZ, Items.CHAIN, Items.GOLD_NUGGET": "Items.GOLD_INGOT, Items.QUARTZ, Items.IRON_CHAIN, Items.GOLD_NUGGET",
+              "killer.getGameProfile().getName()": "killer.getName().getString()",
+              "victim.getGameProfile().getName()": "victim.getName().getString()",
+              "level.dimension().location()": "level.dimension().identifier()",
+              "enchantmentKey.location()": "enchantmentKey.identifier()",
+              ".requires(source -> source.hasPermission(2))": ".requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))",
+              "private static Component colored(String text, int rgb, boolean bold) {": "private static MutableComponent colored(String text, int rgb, boolean bold) {",
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f"Expected old source token not found: {old}")
+              s = s.replace(old, new)
+          p.write_text(s)
+          print("Applied", len(replacements), "Minecraft 1.21.11 mapping/API fixes.")
+          PY
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
