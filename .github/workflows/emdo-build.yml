@@ -1,0 +1,65 @@
+name: Build EveryMobDropsOP
+
+on:
+  push:
+    branches:
+      - build/every-mob-drops-op-jar
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source container
+        uses: actions/checkout@v4
+
+      - name: Reconstruct and validate source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build/source-*.b64 > /tmp/EveryMobDropsOP-source.b64
+          echo "Encoded archive bytes: $(wc -c < /tmp/EveryMobDropsOP-source.b64)"
+          base64 --decode /tmp/EveryMobDropsOP-source.b64 > /tmp/EveryMobDropsOP-source.zip
+          unzip -t /tmp/EveryMobDropsOP-source.zip
+          unzip -q /tmp/EveryMobDropsOP-source.zip -d "$GITHUB_WORKSPACE"
+          test -f EveryMobDropsOP/build.gradle
+          test -f EveryMobDropsOP/src/main/resources/fabric.mod.json
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle 9.6.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.1'
+
+      - name: Build mod JAR
+        working-directory: EveryMobDropsOP
+        run: gradle --no-daemon clean build --stacktrace
+
+      - name: Verify the produced JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls -lah EveryMobDropsOP/build/libs
+          jarfile="$(find EveryMobDropsOP/build/libs -maxdepth 1 -type f -name 'EveryMobDropsOP-*.jar' ! -name '*sources.jar' | head -n 1)"
+          test -n "$jarfile"
+          jar tf "$jarfile" | tee /tmp/emdo-jar-contents.txt
+          grep -q 'fabric.mod.json' /tmp/emdo-jar-contents.txt
+          grep -q 'com/ultraop/emdo/EveryMobDropsOP.class' /tmp/emdo-jar-contents.txt
+          grep -q 'everymobdropsop.mixins.json' /tmp/emdo-jar-contents.txt
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EveryMobDropsOP-Minecraft-1.21.11
+          path: |
+            EveryMobDropsOP/build/libs/EveryMobDropsOP-*.jar
+          if-no-files-found: error
+          retention-days: 14
